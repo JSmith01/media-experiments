@@ -4,7 +4,7 @@ export const MediaDeviceListContext = createContext<MediaDeviceInfo[]>([]);
 
 type EmptyFn = () => void;
 
-const deviceRequestEffect = (deviceType: 'camera' | 'microphone', forceDeviceRequest: () => void): EmptyFn =>  {
+const deviceRequestEffect = (deviceType: 'camera' | 'microphone', forceDeviceRequest: EmptyFn): EmptyFn =>  {
     let mediaPermissions: PermissionStatus | null = null;
     navigator.permissions.query({ name: deviceType }).then(result => {
         mediaPermissions = result;
