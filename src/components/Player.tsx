@@ -14,11 +14,11 @@ declare global {
     interface MediaDevices {
         getDisplayMedia(constraints?: MediaStreamConstraints): Promise<MediaStream>;
     }
-
+    
     interface HTMLVideoElement {
         requestPictureInPicture(): Promise<void>;
     }
-
+    
     interface Document {
         pictureInPictureEnabled: boolean;
         exitPictureInPicture(): Promise<void>;
@@ -27,6 +27,7 @@ declare global {
 
 const CAMERA = 'CAMERA';
 const DESKTOP = 'DESKTOP';
+type streamType = typeof CAMERA | typeof DESKTOP;
 
 function makeConstraint(deviceId: string) {
     return !deviceId ? true : { deviceId };
@@ -39,41 +40,98 @@ class Player extends Component<{}, State> {
         currentCamera: '',
         isPiP: false,
     };
-
+    
     videoElement: RefObject<HTMLVideoElement> = createRef();
-
+    
     stream?: MediaStream;
+    
+    recorder?: MediaRecorder;
 
-    acquireStream = (type: typeof CAMERA | typeof DESKTOP = CAMERA) => {
+    tieStreamWithRecording() {
+        this.stream!.getTracks().forEach(track => {
+            const recordingStreamEndHandler = () => {
+                if (this.recorder && this.recorder.state === 'recording') {
+                    this.recorder.stop();
+                }
+                track.removeEventListener('ended', recordingStreamEndHandler);
+            };
+            track.addEventListener('ended', recordingStreamEndHandler);
+        });
+    }
+
+    startRecording() {
+        if (!this.recorder || this.recorder.state === 'inactive') {
+            this.recorder = new MediaRecorder(this.stream!);
+            this.tieStreamWithRecording();
+        }
+        
+        const recorderState = this.recorder.state;
+        if (recorderState === 'inactive') {
+            this.recorder.start();
+        } else if (recorderState === 'paused') {
+            this.recorder.resume();
+        }
+    };
+        
+    toggleRecording = () => {
+        if (this.recorder && this.recorder.state === 'recording') {
+            this.recorder.pause();
+        } else if (this.stream) {
+            this.startRecording();
+        }
+    }
+
+    acquireStream = (type: streamType = CAMERA) => {
         const getStream = type === CAMERA 
             ? navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
             : navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
         const constraints: MediaStreamConstraints = type === CAMERA 
             ? { audio: makeConstraint(this.state.currentMic), video: makeConstraint(this.state.currentCamera) }
             : { video: true };
+
         getStream(constraints).then(
             (stream: MediaStream) => {
-                this.stream = stream;
-                const videoEl = this.videoElement.current;
-                if (videoEl) {
-                    videoEl.srcObject = stream;
-                    if (videoEl.paused) {
-                        videoEl.play().catch((e: DOMException) => {
-                            console.log(e.name, e.message);
-                        })
-                    }
-                }
+                this.handleNewStream(stream, type);
             }
         )
     };
 
+    handleNewStream = (stream: MediaStream, streamType: streamType) => {
+        this.stream = stream;
+        
+        const videoEl = this.videoElement.current;
+        if (videoEl) {
+            videoEl.srcObject = stream;
+            if (videoEl.paused) {
+                videoEl.play().catch((e: DOMException) => {
+                    console.log(e.name, e.message);
+                });
+            }
+        }
+
+        stream.getTracks().forEach(track => {
+            const trackEndHandler = () => {
+                if (this.videoElement.current && this.videoElement.current.srcObject) {
+                    this.videoElement.current.srcObject = null;
+                }
+                if (this.stream) {
+                    this.stream = undefined;
+                }
+                track.removeEventListener('ended', trackEndHandler);
+            }
+            track.addEventListener('ended', trackEndHandler);
+        });
+    };
+
     revokeVideo = () => {
         const videoEl = this.videoElement.current as HTMLVideoElement;
-        if(!videoEl.paused) {
+        if (!videoEl.paused) {
             videoEl.pause();
         }
+
         videoEl.srcObject = null; 
-        if  (this.stream) {
+
+        if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = undefined;
         }
@@ -119,6 +177,7 @@ class Player extends Component<{}, State> {
             <button onClick={() => this.acquireStream()}>Get video</button>
             <button onClick={() => this.acquireStream(DESKTOP)}>Get desktop</button>
             <button onClick={this.revokeVideo}>Revoke Video</button>
+            <button onClick={this.toggleRecording}>Toggle recording</button>
         </div>
         <video ref={this.videoElement} autoPlay muted></video>
         </Fragment>;
