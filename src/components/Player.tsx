@@ -79,7 +79,7 @@ class Player extends Component<{}, State> {
         } else if (this.stream) {
             this.startRecording();
         }
-    }
+    };
 
     acquireStream = (type: streamType = CAMERA) => {
         const getStream = type === CAMERA 
@@ -118,7 +118,7 @@ class Player extends Component<{}, State> {
                     this.stream = undefined;
                 }
                 track.removeEventListener('ended', trackEndHandler);
-            }
+            };
             track.addEventListener('ended', trackEndHandler);
         });
     };
@@ -157,7 +157,7 @@ class Player extends Component<{}, State> {
             this.videoElement.current!.requestPictureInPicture();
         }
         this.setState({ isPiP: !isPiP });
-    }
+    };
 
     render() {
         const pipEnabled = 'pictureInPictureEnabled' in document;
@@ -174,12 +174,12 @@ class Player extends Component<{}, State> {
                 <DeviceSelector deviceType='videoinput' selectDevice={this.setCamera}/>
             </MediaDeviceListProvider>
             <div className='video-player'>
-            <button onClick={() => this.acquireStream()}>Get video</button>
-            <button onClick={() => this.acquireStream(DESKTOP)}>Get desktop</button>
-            <button onClick={this.revokeVideo}>Revoke Video</button>
-            <button onClick={this.toggleRecording}>Toggle recording</button>
-        </div>
-        <video ref={this.videoElement} autoPlay muted></video>
+                <button onClick={() => this.acquireStream()}>Get video</button>
+                <button onClick={() => this.acquireStream(DESKTOP)}>Get desktop</button>
+                <button onClick={this.revokeVideo}>Revoke Video</button>
+                <button onClick={this.toggleRecording}>Toggle recording</button>
+            </div>
+            <video ref={this.videoElement} autoPlay muted/>
         </Fragment>;
     }
 }

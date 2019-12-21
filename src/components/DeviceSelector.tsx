@@ -28,7 +28,7 @@ function getDeviceName(device: MediaDeviceInfo, i: number): string {
 class DeviceSelector extends Component<Props, State> {
     state: State = {
         selectedDevice: '',
-    }
+    };
 
     static contextType = MediaDeviceListContext;
     context!: React.ContextType<typeof MediaDeviceListContext>;
