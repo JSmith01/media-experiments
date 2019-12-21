@@ -11,17 +11,24 @@ type State = {
 };
 
 declare global {
+    interface PictureInPictureWindow extends EventTarget {
+        readonly width: number;
+        readonly height: number;
+        onresize: EventHandlerNonNull;
+    }
+
     interface MediaDevices {
         getDisplayMedia(constraints?: MediaStreamConstraints): Promise<MediaStream>;
     }
     
     interface HTMLVideoElement {
-        requestPictureInPicture(): Promise<void>;
+        requestPictureInPicture(): Promise<PictureInPictureWindow>;
     }
     
     interface Document {
         pictureInPictureEnabled: boolean;
         exitPictureInPicture(): Promise<void>;
+        pictureInPictureElement: HTMLVideoElement | null;
     }
 }
 
@@ -150,13 +157,18 @@ class Player extends Component<{}, State> {
     };
 
     togglePiP = () => {
-        const { isPiP } = this.state;
-        if (isPiP) {
-            document.exitPictureInPicture();
-        } else {
-            this.videoElement.current!.requestPictureInPicture();
+        if (document.pictureInPictureElement) {
+            document.exitPictureInPicture()
+                .then(() => this.setState({ isPiP: false }));
+        } else if (this.videoElement.current && this.videoElement.current.readyState >= 1) {
+            this.videoElement.current.requestPictureInPicture()
+                .then(() => {
+                    if (this.videoElement.current) {
+                        this.setState({ isPiP: true });
+                        this.videoElement.current.addEventListener('leavepictureinpicture', () => this.setState({ isPiP: false }))
+                    }
+                });
         }
-        this.setState({ isPiP: !isPiP });
     };
 
     render() {
